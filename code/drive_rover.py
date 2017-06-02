@@ -124,7 +124,7 @@ def telemetry(sid, data):
                 Rover.send_pickup = False
         # In case of invalid telemetry, send null commands
         else:
-
+            print('invalid telemetry')
             # Send zeros for throttle, brake and steer and empty images
             send_control((0, 0, 0), '', '')
 
