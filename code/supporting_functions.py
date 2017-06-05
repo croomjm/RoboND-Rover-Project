@@ -10,8 +10,8 @@ def update_rover(Rover, data):
       if Rover.start_time == None:
             Rover.start_time = time.time()
             Rover.total_time = 0
-            samples_xpos = np.int_([np.float(pos.strip()) for pos in data["samples_x"].split(',')])
-            samples_ypos = np.int_([np.float(pos.strip()) for pos in data["samples_y"].split(',')])
+            samples_xpos = np.int_([convert_to_float(pos.strip()) for pos in data["samples_x"].split(';')])
+            samples_ypos = np.int_([convert_to_float(pos.strip()) for pos in data["samples_y"].split(';')])
             Rover.samples_pos = (samples_xpos, samples_ypos)
             Rover.samples_found = np.zeros((len(Rover.samples_pos[0]))).astype(np.int)
       # Or just update elapsed time
@@ -40,9 +40,18 @@ def update_rover(Rover, data):
       # Picking up flag
       Rover.picking_up = np.int(data["picking_up"])
       
-      print('speed =',Rover.vel, 'position =', Rover.pos, 'throttle =', 
-      Rover.throttle, 'steer_angle =', Rover.steer, 'near_sample', Rover.near_sample, 
-      'picking_up', data["picking_up"])
+      status = {
+            'speed': Rover.vel,
+            'position': Rover.pos,
+            'throttle': Rover.throttle,
+            'steer_angle': Rover.steer,
+            'near_sample': Rover.near_sample,
+            'picking_up': data["picking_up"],
+            'action': Rover.action,
+            'mode': Rover.mode
+      }
+
+      print('\n' + '\n'.join([str(key) + ': ' + str(status[key]) for key in status]))
 
       # Get the current image from the center camera of the rover
       imgString = data["image"]

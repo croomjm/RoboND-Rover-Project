@@ -51,10 +51,13 @@ class RoverState():
         self.brake = 0 # Current brake value
         self.nav_angles = None # Angles of navigable terrain pixels
         self.nav_dists = None # Distances of navigable terrain pixels
+        self.rock_angles = None # Angles of rocks to pick up
+        self.rock_dists = None # Distances of rocks to pick up
         self.ground_truth = ground_truth_3d # Ground truth worldmap
         self.mode = 'forward' # Current mode (can be forward or stop)
         self.throttle_set = 0.2 # Throttle setting when accelerating
         self.brake_set = 10 # Brake setting when braking
+        self.action = None
         # The stop_forward and go_forward fields below represent total count
         # of navigable terrain pixels.  This is a very crude form of knowing
         # when you can keep going and when you should stop.  Feel free to
@@ -70,6 +73,7 @@ class RoverState():
         # Update this image with the positions of navigable terrain
         # obstacles and rock samples
         self.worldmap = np.zeros((200, 200, 3), dtype=np.float) 
+        self.worldmap_counts = np.zeros((200, 200, 3), dtype=np.float) #Count number of times each pixel mapped to rock/ground/obstacle, use to probabalistically estimate pixel terrain types
         self.samples_pos = None # To store the actual sample positions
         self.samples_found = 0 # To count the number of samples found
         self.near_sample = 0 # Will be set to telemetry value data["near_sample"]

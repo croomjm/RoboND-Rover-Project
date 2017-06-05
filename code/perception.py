@@ -1,8 +1,7 @@
 import numpy as np
 import cv2
 
-# Identify pixels above the threshold
-# Threshold of RGB > 160 does a nice job of identifying ground pixels only
+# Identify pixels between threshhold upper and lower limits
 def color_thresh(img, rgb_limits):
     rgb_min, rgb_max = rgb_limits
     # Create an array of zeros same xy size as img, but single channel
@@ -34,12 +33,14 @@ def rover_coords(binary_img):
 
 # Define a function to convert to radial coords in rover space
 def to_polar_coords(x_pixel, y_pixel):
-    # Convert (x_pixel, y_pixel) to (distance, angle) 
-    # in polar coordinates in rover space
-    # Calculate distance to each pixel
-    dist = np.sqrt(x_pixel**2 + y_pixel**2)
-    # Calculate angle away from vertical for each pixel
-    angles = np.arctan2(y_pixel, x_pixel)
+    dist, angles = [None, None]
+    if len(x_pixel)>0:
+        # Convert (x_pixel, y_pixel) to (distance, angle) 
+        # in polar coordinates in rover space
+        # Calculate distance to each pixel
+        dist = np.sqrt(x_pixel**2 + y_pixel**2)
+        # Calculate angle away from vertical for each pixel
+        angles = np.arctan2(y_pixel, x_pixel)
     return dist, angles
 
 # Define a function to apply a rotation to pixel positions
@@ -82,6 +83,7 @@ def perspect_transform(img, src, dst):
     
     return warped
 
+# Define a function to determine if roll/pitch values valid for updating map
 def valid_orientation(pitch,roll):
     pitch_thresh = .5
     roll_thresh = .5
@@ -90,6 +92,13 @@ def valid_orientation(pitch,roll):
     if roll<360-roll_thresh and roll>roll_thresh:
         return False
     return True
+
+# Define a function to update worldmap based on percentage of counts of each terrain type
+def update_worldmap(Rover):
+    valid_threshold = 0.75 #percentage of counts needed to update map for given pixel
+    count_sum = np.sum(Rover.worldmap_counts, axis = 2)
+    Rover.worldmap[:,:,0] = (Rover.worldmap_counts/count_sum > valid_threshold)*255
+
 
 # Apply the above functions in succession and update the Rover state accordingly
 def perception_step(Rover):
@@ -154,13 +163,30 @@ def perception_step(Rover):
     obstacle_world_x, obstacle_world_y = pix_to_world(obstacle_rover_x, obstacle_rover_y, *args)
 
     # 7) Update Rover worldmap (to be displayed on right side of screen)
+    
     if valid_orientation(Rover.pitch, Rover.roll):
         Rover.worldmap[obstacle_world_y, obstacle_world_x, 0] = 255
         Rover.worldmap[rock_world_y, rock_world_x, 1] = 255
         Rover.worldmap[ground_world_y, ground_world_x, 2] = 255
+    '''
+    if valid_orientation(Rover.pitch, Rover.roll):
+        Rover.worldmap_counts[obstacle_world_y, obstacle_world_x, 0] += 1
+        Rover.worldmap_counts[rock_world_y, rock_world_x, 1] += 1
+        Rover.worldmap_counts[ground_world_y, ground_world_x, 2] += 1
+
+        update_worldmap(Rover)
+    '''
+
+
+    #subtract overlapping pixels to favor more accurate mapping
+    #remove obstacle pixels from navigable pixels
+    Rover.worldmap[obstacle_world_y, obstacle_world_x, 2] = 0
+    #remove ground pixels from obstacle pixels
+    Rover.worldmap[ground_world_x, ground_world_y, 0] = 0
 
     # 8) Convert rover-centric pixel positions to polar coordinates
-    # Update Rover pixel distances and angles
-        Rover.nav_dists, Rover.nav_angles = to_polar_coords(ground_rover_x, ground_rover_y)
+    # Update Rover pixel distances and angles to rocks and navigable terrain
+    Rover.nav_dists, Rover.nav_angles = to_polar_coords(ground_rover_x, ground_rover_y)
+    Rover.rock_dists, Rover.rock_angles = to_polar_coords(rock_rover_x, rock_rover_y)
     
     return Rover
