@@ -79,9 +79,17 @@ def decision_step(Rover):
         Rover.throttle = 0
         # Release the brake to allow turning
         Rover.brake = 0
+<<<<<<< HEAD
         # Turn range is +/- 15 degrees, when stopped the next line will induce 4-wheel turning
         Rover.steer = -15 # Could be more clever here about which way to turn
         Rover.action = 'Hard Turn'
 
+=======
+        
+    # If in a state where want to pickup a rock send pickup command
+    if Rover.near_sample and Rover.vel == 0 and not Rover.picking_up:
+        Rover.send_pickup = True
+    
+>>>>>>> udacity/master
     return Rover
 

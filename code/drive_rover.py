@@ -75,6 +75,7 @@ class RoverState():
         self.worldmap = np.zeros((200, 200, 3), dtype=np.float) 
         self.worldmap_counts = np.zeros((200, 200, 3), dtype=np.float) #Count number of times each pixel mapped to rock/ground/obstacle, use to probabalistically estimate pixel terrain types
         self.samples_pos = None # To store the actual sample positions
+        self.samples_to_find = 0 # To store the initial count of samples
         self.samples_found = 0 # To count the number of samples found
         self.near_sample = 0 # Will be set to telemetry value data["near_sample"]
         self.picking_up = 0 # Will be set to telemetry value data["picking_up"]
@@ -122,7 +123,7 @@ def telemetry(sid, data):
             send_control(commands, out_image_string1, out_image_string2)
  
             # If in a state where want to pickup a rock send pickup command
-            if Rover.send_pickup:
+            if Rover.send_pickup and not Rover.picking_up:
                 send_pickup()
                 # Reset Rover flags
                 Rover.send_pickup = False
@@ -167,7 +168,7 @@ def send_control(commands, image_string1, image_string2):
         "data",
         data,
         skip_sid=True)
-
+    eventlet.sleep(0)
 # Define a function to send the "pickup" command 
 def send_pickup():
     print("Picking up")
@@ -176,7 +177,7 @@ def send_pickup():
         "pickup",
         pickup,
         skip_sid=True)
-
+    eventlet.sleep(0)
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Remote Driving')
     parser.add_argument(
@@ -188,7 +189,7 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
     
-    os.system('rm -rf IMG_stream/*')
+    #os.system('rm -rf IMG_stream/*')
     if args.image_folder != '':
         print("Creating image folder at {}".format(args.image_folder))
         if not os.path.exists(args.image_folder):
