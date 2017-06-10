@@ -21,14 +21,14 @@ def color_thresh(img, rgb_limits):
     # Return the binary image
     return color_select
 
-# Define a function to convert to rover-centric coordinates
+# Define a function to convert from image coords to rover coords
 def rover_coords(binary_img):
     # Identify nonzero pixels
     ypos, xpos = binary_img.nonzero()
     # Calculate pixel positions with reference to the rover position being at the 
     # center bottom of the image.  
-    x_pixel = np.absolute(ypos - binary_img.shape[0]).astype(np.float)
-    y_pixel = -(xpos - binary_img.shape[0]).astype(np.float)
+    x_pixel = -(ypos - binary_img.shape[0]).astype(np.float)
+    y_pixel = -(xpos - binary_img.shape[1]/2 ).astype(np.float)
     return x_pixel, y_pixel
 
 # Define a function to convert to radial coords in rover space
@@ -40,10 +40,10 @@ def to_polar_coords(x_pixel, y_pixel):
         # Calculate distance to each pixel
         dist = np.sqrt(x_pixel**2 + y_pixel**2)
         # Calculate angle away from vertical for each pixel
-        angles = np.arctan2(y_pixel, x_pixel)
+        angles = np.degrees(np.arctan2(y_pixel, x_pixel))
     return dist, angles
 
-# Define a function to apply a rotation to pixel positions
+# Define a function to map rover space pixels to world space
 def rotate_pix(xpix, ypix, yaw):
     # Convert yaw to radians
     yaw = yaw*np.pi/180
@@ -54,13 +54,13 @@ def rotate_pix(xpix, ypix, yaw):
     # Return the result  
     return xpix_rotated, ypix_rotated
 
-# Define a function to perform a translation
 def translate_pix(xpix_rot, ypix_rot, xpos, ypos, scale): 
     # Scale and translate image pixels to rover coords
     xpix_translated = np.int_(xpos + xpix_rot/scale)
     ypix_translated = np.int_(ypos + ypix_rot/scale)
     # Return the result  
     return xpix_translated, ypix_translated
+
 
 # Define a function to apply rotation and translation (and clipping)
 # Once you define the two functions above this function should work
@@ -93,12 +93,15 @@ def valid_orientation(pitch,roll):
         return False
     return True
 
-# Define a function to update worldmap based on percentage of counts of each terrain type
-def update_worldmap(Rover):
-    valid_threshold = 0.75 #percentage of counts needed to update map for given pixel
-    count_sum = np.sum(Rover.worldmap_counts, axis = 2)
-    Rover.worldmap[:,:,0] = (Rover.worldmap_counts/count_sum > valid_threshold)*255
-
+# Define a function to update worldmap given trust radius
+def trusted(world_y, world_x, dists, trust_radius):
+    if dists is not None:
+        world_y = world_y[dists < trust_radius]
+        world_x = world_x[dists < trust_radius]
+    else:
+        print('dists == None')
+    
+    return world_y, world_x       
 
 # Apply the above functions in succession and update the Rover state accordingly
 def perception_step(Rover):
@@ -125,7 +128,7 @@ def perception_step(Rover):
         #initialize threshholds for various targets
     ground_thresh = ((160, 160, 160),(256,256,256))
     rock_thresh = ((90,80,0), (210,210,70))
-    obstacle_thresh = ((-1,-1,-1), (130,130,130))
+    obstacle_thresh = ((-1,-1,-1), (110,110,110))
     
         #get threshholded images
     threshed_ground = color_thresh(Rover.img, ground_thresh)
@@ -133,22 +136,12 @@ def perception_step(Rover):
     threshed_obstacle = color_thresh(Rover.img, obstacle_thresh)
         #eliminate overlap on segmented obstacle and rock images
     threshed_rock[threshed_obstacle==1]=0
-
-        #Update Rover.vision_image (unwarped)
-    Rover.vision_image[:,:,0] = threshed_obstacle*255
-    Rover.vision_image[:,:,1] = threshed_rock*255
-    Rover.vision_image[:,:,2] = threshed_ground*255
     
     # 2) Apply perspective transform
         #warp threshholded images
     warped_ground = perspect_transform(threshed_ground, source, destination)
     warped_rock = perspect_transform(threshed_rock, source, destination)
     warped_obstacle = perspect_transform(threshed_obstacle, source, destination)
-
-    # 4) Update Rover.vision_image (this will be displayed on left side of screen)
-    #Rover.vision_image[:,:,1] = warped_obstacle*255
-    #Rover.vision_image[:,:,2] = warped_rock*255
-    #Rover.vision_image[:,:,3] = warped_ground*255
 
     # 5) Convert map image pixel values to rover-centric coords
     ground_rover_x, ground_rover_y = rover_coords(warped_ground)
@@ -162,31 +155,49 @@ def perception_step(Rover):
     rock_world_x, rock_world_y = pix_to_world(rock_rover_x, rock_rover_y, *args)
     obstacle_world_x, obstacle_world_y = pix_to_world(obstacle_rover_x, obstacle_rover_y, *args)
 
-    # 7) Update Rover worldmap (to be displayed on right side of screen)
-    
-    if valid_orientation(Rover.pitch, Rover.roll):
-        Rover.worldmap[obstacle_world_y, obstacle_world_x, 0] = 255
-        Rover.worldmap[rock_world_y, rock_world_x, 1] = 255
-        Rover.worldmap[ground_world_y, ground_world_x, 2] = 255
-    '''
-    if valid_orientation(Rover.pitch, Rover.roll):
-        Rover.worldmap_counts[obstacle_world_y, obstacle_world_x, 0] += 1
-        Rover.worldmap_counts[rock_world_y, rock_world_x, 1] += 1
-        Rover.worldmap_counts[ground_world_y, ground_world_x, 2] += 1
-
-        update_worldmap(Rover)
-    '''
-
-
-    #subtract overlapping pixels to favor more accurate mapping
-    #remove obstacle pixels from navigable pixels
-    Rover.worldmap[obstacle_world_y, obstacle_world_x, 2] = 0
-    #remove ground pixels from obstacle pixels
-    Rover.worldmap[ground_world_x, ground_world_y, 0] = 0
-
     # 8) Convert rover-centric pixel positions to polar coordinates
     # Update Rover pixel distances and angles to rocks and navigable terrain
     Rover.nav_dists, Rover.nav_angles = to_polar_coords(ground_rover_x, ground_rover_y)
     Rover.rock_dists, Rover.rock_angles = to_polar_coords(rock_rover_x, rock_rover_y)
+    Rover.obstacle_dists, Rover.obstacle_angles = to_polar_coords(obstacle_rover_x, obstacle_rover_y)
+    '''
+        #Update Rover.vision_image (unwarped) with untrusted data, half intensity
+    Rover.vision_image[:,:,0] = threshed_obstacle*125
+    Rover.vision_image[:,:,1] = threshed_rock*125
+    Rover.vision_image[:,:,2] = threshed_ground*125
+
+        # apply trust radius to threshholded rover imagery for display on screen
+    threshed_ground = trusted(threshed_ground[0], threshed_ground[1], Rover.nav_dists, Rover.trustR['nav'])
+    threshed_obstacle = trusted(threshed_obstacle[0], threshed_obstacle[1], Rover.obstacle_dists, Rover.trustR['obs'])
+    threshed_ground = trusted(threshed_rock[0], threshed_rock[1], Rover.rock_dists, Rover.trustR['rock'])
+    '''
+        #Update Rover.vision_image (unwarped) with trusted data, full intensity
+    Rover.vision_image[:,:,0] = threshed_obstacle*255
+    Rover.vision_image[:,:,1] = threshed_rock*255
+    Rover.vision_image[:,:,2] = threshed_ground*255
+
+    # 7) Update Rover worldmap (to be displayed on right side of screen)
+    # only update if rover is in a valid orientation
+    if valid_orientation(Rover.pitch, Rover.roll):
+        obstacle_world_y, obstacle_world_x = trusted(obstacle_world_y, obstacle_world_x, Rover.obstacle_dists, Rover.trustR['obs'])
+        ground_world_y, ground_world_x = trusted(ground_world_y, ground_world_x, Rover.nav_dists, Rover.trustR['nav'])
+        rock_world_y, rock_world_x = trusted(rock_world_y, rock_world_x, Rover.rock_dists, Rover.trustR['rock'])
+
+        #add pixels in worldmap for detected obstacles, rocks, and ground
+        Rover.worldmap[obstacle_world_y, obstacle_world_x, 0] = 255
+        Rover.worldmap[rock_world_y, rock_world_x, 1] = 255
+        Rover.worldmap[ground_world_y, ground_world_x, 2] = 255
+
+        #subtract overlapping pixels to favor more accurate mapping
+        #remove obstacle pixels from navigable pixels
+        Rover.worldmap[obstacle_world_y, obstacle_world_x, 2] = 0
+        #remove ground pixels from obstacle pixels
+        Rover.worldmap[ground_world_x, ground_world_y, 0] = 0
+
+
+    # restrict nav dists, rock dists, obstacle dists used for navigation to trusted radius
+    Rover.obstacle_dists, Rover.obstacle_angles = trusted(Rover.obstacle_dists, Rover.obstacle_angles, Rover.obstacle_dists, Rover.trustR['obs'])
+    Rover.nav_dists, Rover.nav_angles = trusted(Rover.nav_dists, Rover.nav_angles, Rover.nav_dists, Rover.trustR['nav'])
+    Rover.rock_dists, Rover.rock_angles = trusted(Rover.rock_dists, Rover.rock_angles, Rover.rock_dists, Rover.trustR['rock'])
     
     return Rover
