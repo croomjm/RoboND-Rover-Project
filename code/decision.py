@@ -1,5 +1,7 @@
 import numpy as np
 
+
+'''Abandoned helper functions for more complicated decision tree
 def get_steer_angle(Rover):
     max_steer_angle =  5 + 10*(1-np.clip(np.abs(Rover.vel)/Rover.max_vel, 0, 1))
     return int(max_steer_angle)
@@ -40,11 +42,7 @@ def back_up(Rover, throttle = None):
     Rover.steer = 0
 
     return Rover
-
-
-
-
-
+'''
 
 # This is where you can build a decision tree for determining throttle, brake and steer 
 # commands based on the output of the perception_step() function
@@ -119,7 +117,7 @@ def decision_step(Rover):
     
     return Rover    
 
-'''Newer Code
+'''Abandoned code
 # Example:
     if Rover.mode == 'acquire_sample':
         if Rover.near_sample:
