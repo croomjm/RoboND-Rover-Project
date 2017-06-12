@@ -61,6 +61,10 @@ class RoverState():
         self.brake_set = 10 # Brake setting when braking
         self.action = None
 
+        self.unstickStartPos = None # Start pos at start of unstick mode
+        self.unstickStartYaw = None # Start yaw at start of unstick mode
+        self.unstickStartTime = None # Start time of unstick mode
+        self.stopStartTime = None # Start yaw at start of stop mode hard turn
 
         self.trustR = {'rock': 100, 'obs': 50, 'nav': 50} #define trust radii for all features
 
