@@ -1,5 +1,9 @@
 ## Project: Search and Sample Return 
 [//]: # (Image References)
+
+[image1]: ./misc/rover_image.jpg
+[image2]: ./calibration_images/example_grid1.jpg
+[image3]: ./calibration_images/example_rock1.jpg 
 [image4]: ./misc/segmented_rock_img2.png
 
 ## [Rubric](https://review.udacity.com/#!/rubrics/916/view) Points
@@ -229,15 +233,24 @@ I attempted to make some modifications to the decision step file as follows:
 
 Unfortunately, the structure of the program became so needlessly complex that it was very difficult to debug and mentally model state flow. After viewing the live stream of the successful submissions, I realized that I wasn't the only one that found this approach untenable. As a result, I reverted to the original code and generated my final submission with that.
 
+As a simple compromise, I added in a third mode to my decision step: 'unstick'. The decision step reverts to this mode if the rover is in forward mode, but it is not responding to commands (e.g. if not moving forward because stuck on a rock) or if it exceeds a timeout in stop mode (e.g. if it's attempting to reorient to navigable terrain, but turn). The behavior in this mode is to back up, then reorient a distance and angle according to experimentation. The unstick mode also has a timeout so that the rover never gets stuck in the 'unstick' mode. This simple heuristic was sufficient to avoid becoming stuck in overhanging rocks or against dead ends.
+
+I also modified the 'forward' mode to have a slight bias in the steering angle calculation to obtain a loose wall-following behavior:
+```python
+# Set steering to average angle clipped to the range +/- 15
+Rover.steer = np.clip(np.mean(Rover.nav_angles)-8, -15, 15)
+```
+
 #### Mapping Results and Future Improvements
 
-Here's a [video](https://youtu.be/5h85v-0rbQs) of a test run I performed. I tested the rover in 1024x640 with "Good" image quality.
+Here's a [video](https://youtu.be/CSsetFwgJ90) of a test run I performed. I tested the rover in 1024x640 with "Good" image quality.
 
-If I were able to keep working on the project, I'd make a few changes:
+With the simple navigation heuristics mentioned above, I was able to map ~80% of the map with ~90% fidelity.
+
+If I were to keep working on the project, I'd make a few changes:
  1. Make a solid finite state machine to manage the decision_step() state flow
- 2. Add in logic for wall following, picking up rocks, backing up away once stuck, etc.
+ 2. Add in more reliable logic for wall following, picking up rocks, backing up away once stuck, etc.
+ 3. Implement an algorithm to plan paths around nearby obstacles rather than simply following a simple steering heuristic based on mean navigable terrain angle.
  3. Implement an algorithm to determined which areas still need to be explored. This could be done by looking for navigable terrain in the worldmap that is separated from obstacles or rocks by a distance larger than some sensitivity radius, then planning a path to that location using A\* search or similar.
  
-My autonomous rover code is definitely sensitive to getting stuck in overhanging rock areas right now. To make the runs more repeatable, implementing code for backing up when stuck would be critical.
-
 I also noticed a bug I wasn't able to diagnose in during the project. When navigating to the northern-most portion of the map, the worldmap stopped updating. I noticed this both in my test notebook and in my autonomous navigation code. I wanted to dig into this more, but I ran out of time.
