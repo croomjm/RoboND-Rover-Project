@@ -104,10 +104,7 @@ def valid_orientation(pitch,roll):
 def trusted(world_y, world_x, dists, trust_radius):
     if dists is not None:
         world_y = world_y[dists < trust_radius]
-        world_x = world_x[dists < trust_radius]
-    else:
-        print('dists == None')
-    
+        world_x = world_x[dists < trust_radius]    
     return world_y, world_x       
 
 # Apply the above functions in succession and update the Rover state accordingly
@@ -187,7 +184,7 @@ def perception_step(Rover):
         #remove obstacle pixels from navigable pixels
         Rover.worldmap[obstacle_world_y, obstacle_world_x, 2] = 0
         #remove ground pixels from obstacle pixels
-        Rover.worldmap[ground_world_x, ground_world_y, 0] = 0
+        Rover.worldmap[ground_world_y, ground_world_x, 0] = 0
 
 
     # restrict nav dists, rock dists, obstacle dists used for navigation to trusted radius
