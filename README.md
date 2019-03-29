@@ -6,15 +6,7 @@
 [image3]: ./calibration_images/example_rock1.jpg 
 [image4]: ./misc/segmented_rock_img2.png
 
-## [Rubric](https://review.udacity.com/#!/rubrics/916/view) Points
-### Here I will consider the rubric points individually and describe how I addressed each point in my implementation.  
-
----
-### Writeup / README
-
-#### 1. Provide a Writeup / README that includes all the rubric points and how you addressed each one.  You can submit your writeup as markdown or pdf.  
-
-You're reading it!
+I completed this project as part of my [Udacity Robotics Software Engineer Nanodegree](https://confirm.udacity.com/AQCTW57M). Leveraging the simulated rover built by Udacity within the Unity game engine, I segemented simulated camera images using various color space filters, projected the images into world map space, and wrote basic logic to autonomously guide the rover around the map to identify and gather rocks. My approach and results are summarized below. See the original project description in Udacity's writeup [here](./Udacity_README.md).
 
 ### Notebook Analysis
 
